@@ -1,0 +1,4 @@
+modelscope
+transformers
+torch
+accelerate
