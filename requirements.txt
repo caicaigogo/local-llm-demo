@@ -2,3 +2,4 @@ modelscope
 transformers
 torch
 accelerate
+torchvision
