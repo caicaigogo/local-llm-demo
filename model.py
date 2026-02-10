@@ -3,7 +3,7 @@ import torch
 
 
 class QwenModel:
-    def __init__(self, model_path="Qwen/Qwen2.5-0.5B-Instruc"):
+    def __init__(self, model_path="Qwen/Qwen2.5-0.5B-Instruct"):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # 使用量化加载减少内存占用
