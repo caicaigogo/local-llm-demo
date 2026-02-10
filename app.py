@@ -6,7 +6,6 @@ import logging
 from model import QwenModel
 from fastapi.responses import StreamingResponse
 from transformers.generation.streamers import TextIteratorStreamer
-import asyncio
 from threading import Thread
 
 
@@ -29,7 +28,8 @@ app.add_middleware(
 # 请求模型
 class ChatRequest(BaseModel):
     prompt: str
-    max_new_tokens: int = 512
+    max_length: int = 512
+    max_new_tokens: int = 100
     temperature: float = 0.7
     history: list = None
 
@@ -56,7 +56,7 @@ def generate_stream(request: ChatRequest):
 
     # 生成参数
     generation_kwargs = dict(
-        inputs=inputs,
+        **inputs,
         streamer=streamer,
         max_new_tokens=request.max_new_tokens,
         temperature=request.temperature,
@@ -67,26 +67,21 @@ def generate_stream(request: ChatRequest):
     thread = Thread(target=model.generate, kwargs=generation_kwargs)
     thread.start()
 
-    # 异步迭代streamer
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    response_text = ""
-    for new_text in streamer:
-        response_text += new_text
-        # SSE格式
-        yield f" {new_text}\n\n"
-
-    # 结束标记
-    yield " [DONE]\n\n"
+    for token in streamer:
+        yield f"data: {token}\n\n"  # SSE 格式
+    yield "data: [DONE]\n\n"
 
 
 @app.on_event("startup")
 async def startup_event():
     global qwen_model
+    global model, tokenizer
+
     try:
         logger.info("Loading Qwen model...")
         qwen_model = QwenModel()
+        model = qwen_model.model
+        tokenizer = qwen_model.tokenizer
         logger.info("Model loaded successfully")
     except Exception as e:
         logger.error(f"Failed to load model: {e}")
@@ -101,7 +96,7 @@ async def chat(request: ChatRequest):
 
         response = qwen_model.generate(
             request.prompt,
-            max_new_tokens=request.max_new_tokens,
+            max_length=request.max_length,
             temperature=request.temperature
         )
 
@@ -113,7 +108,7 @@ async def chat(request: ChatRequest):
 
 
 @app.post("/stream")
-async def chat(request: ChatRequest):
+async def stream_chat(request: ChatRequest):
     try:
         if qwen_model is None:
             raise HTTPException(status_code=503, detail="Model not loaded")

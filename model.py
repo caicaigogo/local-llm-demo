@@ -14,7 +14,7 @@ class QwenModel:
 
         self.model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            device_map="auto",
+            device_map=None,
             trust_remote_code=True,
             torch_dtype=torch.float32
         )
